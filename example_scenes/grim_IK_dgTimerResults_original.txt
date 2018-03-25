@@ -1,0 +1,2 @@
+Rank  ON     Self  Percent  Cumulative  Inclusive   Count   Type    Node
+    1 N     0.9935  88.62%     0.9935     1.4507    40002 grim_vik solver_lf_01_grim_vik C:/Users/Brendan/SkyDrive/maya/2017/plug-ins/grim_IK.mll
