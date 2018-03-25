@@ -335,9 +335,33 @@ MStatus Grim_VIK::compute( const MPlug& plug, MDataBlock& data )
 	else if (fkIkBlend == 1.0)
 		final_pose = ik_pose;
 	else {
+		MTransformationMatrix prev_mat = MTransformationMatrix(rootMatrix);
+		MTransformationMatrix fk_prev_mat = prev_mat;
+		MTransformationMatrix ik_prev_mat = prev_mat;
 		for (index = 0; index < 3; index++) {
-			final_pose.position[index]    =  lerp(fk_pose.position[index],    ik_pose.position[index],    fkIkBlend);
+			// BK: lerping fk_pose.position and ik_pose.position causes the joints
+			// to blend in straight world-space lines from one pose to the other.
+			// Can result in undesirable bone lengths
+			// Instead, get the joint's local position and lerp that, then transform back to world position.
+			//final_pose.position[index]    =  lerp(fk_pose.position[index],    ik_pose.position[index],    fkIkBlend);
 			final_pose.orientation[index] = slerp(fk_pose.orientation[index], ik_pose.orientation[index], fkIkBlend);
+
+			if (index != 0) {
+				// setup prev matrices (this joint's parent space)
+				int prev = index - 1;
+				prev_mat.rotateTo(final_pose.orientation[prev]);
+				prev_mat.setTranslation(final_pose.position[prev], MSpace::kWorld);
+				fk_prev_mat.rotateTo(fk_pose.orientation[prev]);
+				fk_prev_mat.setTranslation(fk_pose.position[prev], MSpace::kWorld);
+				ik_prev_mat.rotateTo(ik_pose.orientation[prev]);
+				ik_prev_mat.setTranslation(ik_pose.position[prev], MSpace::kWorld);
+			}
+			
+			// world position to local position (MPoint * parentInverseMatrix)
+			MPoint fk_local_pos = fk_pose.position[index] * fk_prev_mat.asMatrixInverse();
+			MPoint ik_local_pos = ik_pose.position[index] * ik_prev_mat.asMatrixInverse();
+			// and back to world space (lerp'd local MPoint * lerp'd parentMatrix)
+			final_pose.position[index] = lerp(fk_local_pos, ik_local_pos, fkIkBlend) * prev_mat.asMatrix();
 		}
 	}
 
